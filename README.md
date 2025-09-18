@@ -1,2 +1,2 @@
-# camia_VillarinDeVeyra
+# Class-Monitor-Attendance-Tracker
 A school project involving a program that will check for attendance of students.
