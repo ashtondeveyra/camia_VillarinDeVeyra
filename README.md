@@ -17,14 +17,14 @@ A school project involving a program that will check for the attendance of a max
 5. Make sure the student follows the on-screen instruction
 
 - Example Output:
-  1. Enter Student Full name: Ashton Zac G. De Veyra
-  2. Enter Students Grade: 8
-  3. Enter Students Section: Camia
-  4. Enter Time (HH:MM): 07:00
-  5. You are the 8th person!
-  6. You are early!
+1. Enter Student Full name: Ashton Zac G. De Veyra
+2. Enter Students Grade: 8
+3. Enter Students Section: Camia
+4. Enter Time (HH:MM): 07:00
+5. You are the 8th person!
+6. You are early!
 
-  Restart? (Press no only if you are the last student) (y/n): y
+7. Restart? (Press no only if you are the last student) (y/n): y
 
   Contributors:
   Villarin, Sean Lester C. - helped in making the project title, its objectives, planned features, and helping in the design of the flowchary
