@@ -6,7 +6,7 @@ A school project involving a program that will check for the attendance of a max
 
 - Features:
 1. Input student's name, section, and time of arrival
-2 Display the nth position of the current student who made an input
+2. Display the nth position of the current student who made an input
 3. Display time status (early/late/on time)
 
 - How to Run the Program:
@@ -17,12 +17,12 @@ A school project involving a program that will check for the attendance of a max
 5. Make sure the student follows the on-screen instruction
 
 - Example Output:
-  Enter Student Full name: Ashton Zac G. De Veyra
-  Enter Students Grade: 8
-  Enter Students Section: Camia
-  Enter Time (HH:MM): 07:00
-  You are the 8th person!
-  You are early!
+  *Enter Student Full name: Ashton Zac G. De Veyra
+  *Enter Students Grade: 8
+  *Enter Students Section: Camia
+  *Enter Time (HH:MM): 07:00
+  *You are the 8th person!
+  *You are early!
 
   Restart? (Press no only if you are the last student) (y/n): y
 
