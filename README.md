@@ -6,7 +6,7 @@ A school project involving a program that will check for the attendance of a max
 
 - Features:
 1. Input student's name, section, and time of arrival
-2. Let the student optionally enter a code/password to avoid impersonation (4 digits)
+2 Display the nth position of the current student who made an input
 3. Display time status (early/late/on time)
 
 - How to Run the Program:
