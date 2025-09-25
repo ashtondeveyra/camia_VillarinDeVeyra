@@ -2,7 +2,7 @@ Project Title:
 # Class-Monitor-Attendance-Tracker
 
 - Project Description:
-A school project involving a program that will check for the attendance of a maximum of 30 students. It will track the time they arrived and will also display whether they were late or early. It will base its output on the time 07:30, which is the average time of arrival in schools.
+A school project involving a program that will check for the attendance of students. It will track the time they arrived and will also display whether they were late or early. It will base its output on the time 07:30, which is the average time of arrival in schools.
 
 - Features:
 1. Input student's name, section, and time of arrival
