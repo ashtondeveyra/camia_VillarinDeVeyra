@@ -5,13 +5,14 @@ Project Title:
 A school project involving a program that will check for the attendance of students. It will track the time they arrived and will also display whether they were late or early. It will base its output on the time 07:30, which is the average time of arrival in schools.
 
 - Features:
-1. Scan qr code as a more simple way to attendance
-2. Display the nth position of the current student who made an input
-3. Display time status (early/late/on time)
-4. A time tracker will be installed for easy use of program
-5. Visible names of those who scanned on the side for easy monitoring once all is done.
-6. Distributes the student name and time status both to the section monitor and the chiefs in charge of attendance.
-7. Once the qr code is scanned, you cant rescan it for the day. If you will it will print "Qr code already scanned. *Time status*"
+1. Ask the user if they have a QR code, and generate one for them if they don't have one
+2. Scan qr code as a more simple way of attendance
+3. Display the nth position of the current student who made an input
+4. Display time status (early/late/on time)
+5. A time tracker will be installed for easy use of program
+6. Visible names of those who scanned on the side for easy monitoring once all is done.
+7. Distributes the student name and time status both to the section monitor and the chiefs in charge of attendance.
+8. Once the qr code is scanned, you cant rescan it for the day. If you will it will print "Qr code already scanned. *Time status*"
 
 - How to Run the Program:
 1. Have Python installed on your device
