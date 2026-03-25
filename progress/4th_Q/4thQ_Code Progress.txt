@@ -1,0 +1,199 @@
+import qrcode
+import json
+import os
+from PIL import Image
+import cv2
+from datetime import datetime
+import csv
+import time 
+
+#Global Variables:
+scan_count = 0
+scanned_students = set()
+attendance_records = []
+
+
+SECRET_KEY = "mysecret123"
+
+
+last_scan_time = 0
+SCAN_DELAY = 2  #seconds
+
+# Target attendance time
+TARGET_HOUR = 7
+TARGET_MINUTE = 30
+
+print("Welcome to the attendance system!\n")
+
+def ordinal(n):
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return str(n) + suffix
+
+def get_time_status_and_time():
+    now = datetime.now()
+    time_str = now.strftime("%I:%M %p")
+
+    if now.hour < TARGET_HOUR or (now.hour == TARGET_HOUR and now.minute < TARGET_MINUTE):
+        status = "Early"
+    elif now.hour == TARGET_HOUR and now.minute == TARGET_MINUTE:
+        status = "On time"
+    else:
+        status = "Late"
+
+    return time_str, status
+
+def display_attendance_summary():
+    print("Current attendance list:")
+    for i, record in enumerate(attendance_records, start=1):
+        print(f"  {i}. {record['name']} ({record['status']} at {record['time']})")
+    print(f"\nTotal attendance count: {len(attendance_records)}\n")
+
+def register_student(name):
+    global scan_count
+
+    if name in scanned_students:
+        print(f"\nThis QR has already been scanned. Attendance already recorded for {name}.\n")
+        return
+
+    scanned_students.add(name)
+    scan_count += 1
+
+    time_str, status = get_time_status_and_time()
+
+    attendance_records.append({
+        "name": name,
+        "time": time_str,
+        "status": status
+    })
+
+    print("Time status:", status)
+    print()
+    print(f"You are the {ordinal(scan_count)} student to scan/register today.\n")
+
+    display_attendance_summary()
+
+def export_csv():
+    with open("attendance.csv", "w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Student Name", "Time", "Time Status"])
+        for record in attendance_records:
+            writer.writerow([record["name"], record["time"], record["status"]])
+
+def export_text_report():
+    with open("attendance_report.txt", "w", encoding="utf-8") as file:
+        file.write("Attendance Report\n")
+        file.write("=================\n\n")
+        for i, record in enumerate(attendance_records, start=1):
+            file.write(f"{i}. {record['name']} - {record['time']} - {record['status']}\n")
+        file.write(f"\nTotal Attendance: {len(attendance_records)}\n")
+
+# ---------------- MAIN LOOP ----------------
+while True:
+    while True:
+        has_qr = input("Do you already have a QR code? (yes/no): ").strip().lower()
+        print()
+        if has_qr in ["yes", "no"]:
+            break
+        print("Invalid input. Please type 'yes' or 'no'.\n")
+
+    if has_qr == "no":
+        name = input("Enter your full name: ").strip()
+        print()
+
+        data = {
+            "name": name,
+            "key": SECRET_KEY
+        }
+
+        data_string = json.dumps(data)
+
+        qr = qrcode.QRCode(version=1, box_size=10, border=4)
+        qr.add_data(data_string)
+        qr.make(fit=True)
+
+        img = qr.make_image(fill_color="black", back_color="white")
+        filename = f"{name.replace(' ', '_')}_QR.png"
+        img.save(filename)
+        os.startfile(filename)
+
+        print(f"QR code generated, displayed, and saved as {filename}.")
+        print("Now please scan your QR code to register your attendance.\n")
+        has_qr = "yes"
+
+    if has_qr == "yes":
+        print("Please open the camera window and show your QR code to the camera.")
+        print("Press 'Q' to cancel.\n")
+
+        cap = cv2.VideoCapture(0)
+        detector = cv2.QRCodeDetector()
+
+    
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Failed to access camera.")
+                break
+
+            cv2.imshow("QR Scanner - Show your QR code", frame)
+
+            data, bbox, _ = detector.detectAndDecode(frame)
+
+            if data:
+                current_time = time.time()
+
+                # Prevent rapid re-scanning
+                if current_time - last_scan_time < SCAN_DELAY:
+                    continue
+
+                last_scan_time = current_time
+
+                try:
+                    qr_data = json.loads(data)
+
+                    # Validate key
+                    if qr_data.get("key") != SECRET_KEY:
+                        print("\nInvalid QR code (unauthorized).\n")
+                        continue
+
+                    student_name = qr_data.get("name", "Unknown")
+
+                    print("\nQR Code scanned successfully!\n")
+                    print("Student name:", student_name)
+
+                    register_student(student_name)
+
+                except json.JSONDecodeError:
+                    print("\nScanned QR code is not valid JSON.\n")
+
+                break  # only scan once per student
+
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                print("\nScanning cancelled.")
+                break
+
+        cap.release()
+        cv2.destroyAllWindows()
+
+    while True:
+        another = input("Is there another student? (yes/no): ").strip().lower()
+        if another in ["yes", "no"]:
+            break
+        print("Invalid input. Please type 'yes' or 'no'.\n")
+
+    if another == "no":
+        export_csv()
+        export_text_report()
+
+        os.startfile("attendance.csv")
+        os.startfile("attendance_report.txt")
+
+        print("\nAttendance session ended.")
+        print("Files have been opened automatically.")
+        print("Thank you!")
+        break
+
+    print("\n--- Next student ---\n")
