@@ -1,3 +1,5 @@
+code progress as of 03/20/26
+
 import qrcode
 import json
 import os
