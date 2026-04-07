@@ -1,0 +1,377 @@
+code progress as of 04/07/26
+
+
+import tkinter as tk
+from tkinter import messagebox, ttk
+import qrcode
+import json
+import os
+from PIL import Image
+import cv2
+from datetime import datetime
+import csv
+import time
+import re  # <-- ADDED
+
+# ---------------- SETTINGS ----------------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SECRET_KEY = "my_secret_key_123"
+SCAN_DELAY = 2  # seconds
+
+# Global Variables:
+last_scan_time = 0
+scan_count = 0
+scanned_students = set()
+attendance_records = []
+start_time = datetime.now()
+
+# Target attendance time
+TARGET_HOUR = 7
+TARGET_MINUTE = 30
+
+# ---------------- FUNCTIONS ----------------
+def get_time_status_and_time():
+    now = datetime.now()
+    time_str = now.strftime("%I:%M %p")
+
+    current_minutes = now.hour * 60 + now.minute
+    target_minutes = TARGET_HOUR * 60 + TARGET_MINUTE
+    diff = current_minutes - target_minutes
+
+    if diff < 0:
+        status = "Early"
+    elif diff == 0:
+        status = "On time"
+    else:
+        if diff < 10:
+            status = "Late (No Admission Slip required)"
+        else:
+            status = "Late (Admission Slip required)"
+
+    return time_str, status
+
+def filter_table(*args):
+    query = search_var.get().lower()
+
+    for item in attendance_table.get_children():
+        attendance_table.delete(item)
+
+    for i, record in enumerate(attendance_records, start=1):
+        if query in record["name"].lower():
+            attendance_table.insert(
+                "",
+                "end",
+                values=(i, record["name"], record["time"], record["status"]),
+                tags=(record["status"],)
+            )
+
+def register_student(name):
+    global scan_count
+
+    if datetime.now() < start_time:
+        messagebox.showwarning(
+            "System Time Changed",
+            "System time appears to have been modified.\n\nAttendance may not be accurate."
+        )
+
+    if name in scanned_students:
+        messagebox.showwarning("Already Scanned", f"Attendance already recorded for {name}.")
+        return
+
+    scanned_students.add(name)
+    scan_count += 1
+
+    time_str, status = get_time_status_and_time()
+
+    attendance_records.append({
+        "name": name,
+        "time": time_str,
+        "status": status
+    })
+
+    attendance_table.insert(
+        "",
+        "end",
+        values=(scan_count, name, time_str, status),
+        tags=(status,)
+    )
+
+    if status == "Early":
+        attendance_table.tag_configure("Early", foreground="blue")
+    elif status == "On time":
+        attendance_table.tag_configure("On time", foreground="green")
+    elif "No Admission Slip required" in status:
+        attendance_table.tag_configure("Late (No Admission Slip required)", foreground="orange")
+    elif "Admission Slip required" in status:
+        attendance_table.tag_configure("Late (Admission Slip required)", foreground="red")
+
+def export_csv():
+    today = datetime.now().strftime("%Y-%m-%d")
+    filename = os.path.join(BASE_DIR, f"attendance_{today}.csv")
+
+    try:
+        with open(filename, "w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow(["Student Name", "Time", "Time Status"])
+            for record in attendance_records:
+                writer.writerow([record["name"], record["time"], record["status"]])
+        return filename
+    except PermissionError:
+        messagebox.showerror(
+            "File Error",
+            "Unable to save CSV file.\n\nPlease close the file if it is open and try again."
+        )
+        return None
+
+def export_text_report():
+    today = datetime.now().strftime("%Y-%m-%d")
+    filename = os.path.join(BASE_DIR, f"attendance_report_{today}.txt")
+
+    try:
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write("Attendance Report\n")
+            file.write("=================\n\n")
+            for i, record in enumerate(attendance_records, start=1):
+                file.write(f"{i}. {record['name']} - {record['time']} - {record['status']}\n")
+            file.write(f"\nTotal Attendance: {len(attendance_records)}\n")
+        return filename
+    except PermissionError:
+        messagebox.showerror(
+            "File Error",
+            "Unable to save text report.\n\nPlease close the file if it is open and try again."
+        )
+        return None
+
+def on_close():
+    if len(attendance_records) == 0:
+        messagebox.showwarning("No Data", "At least one person needed to register.")
+        return
+
+    csv_file = export_csv()
+    txt_file = export_text_report()
+
+    if not csv_file or not txt_file:
+        return
+
+    messagebox.showinfo(
+        "Attendance Saved",
+        f"Attendance exported automatically.\n"
+        f"- {os.path.basename(csv_file)}\n"
+        f"- {os.path.basename(txt_file)}"
+    )
+
+    root.destroy()
+
+# ---------------- GUI SETUP ----------------
+root = tk.Tk()
+root.title("Attendance System")
+root.geometry("600x450")
+
+title_label = tk.Label(root, text="Class Monitor Attendance Tracker", font=("Arial", 16, "bold"))
+title_label.pack(pady=(10, 0))
+
+instruction_label = tk.Label(
+    root,
+    text="(Once ensured that everyone has registered, please close this window)",
+    font=("Arial", 10),
+    fg="gray"
+)
+instruction_label.pack(pady=(0, 10))
+
+# Legend
+legend_frame = tk.Frame(root)
+legend_frame.pack(pady=(0, 5))
+
+tk.Label(legend_frame, text="● Early", fg="blue", font=("Arial", 9)).pack(side="left", padx=5)
+tk.Label(legend_frame, text="● On time", fg="green", font=("Arial", 9)).pack(side="left", padx=5)
+tk.Label(legend_frame, text="● Late (No Slip)", fg="orange", font=("Arial", 9)).pack(side="left", padx=5)
+tk.Label(legend_frame, text="● Late (Slip Required)", fg="red", font=("Arial", 9)).pack(side="left", padx=5)
+
+# Search bar
+search_var = tk.StringVar()
+search_var.trace("w", filter_table)
+
+search_frame = tk.Frame(root)
+search_frame.pack(pady=(0, 5))
+
+tk.Label(search_frame, text="Search Name:").pack(side="left", padx=5)
+tk.Entry(search_frame, textvariable=search_var, width=30).pack(side="left")
+
+# Table (with scrollbar)
+table_frame = tk.Frame(root)
+table_frame.pack(pady=10)
+
+columns = ("No.", "Name", "Time", "Status")
+attendance_table = ttk.Treeview(table_frame, columns=columns, show="headings", height=12)
+
+attendance_table.heading("No.", text="No.")
+attendance_table.heading("Name", text="Name")
+attendance_table.heading("Time", text="Time")
+attendance_table.heading("Status", text="Status")
+
+attendance_table.column("No.", width=40, anchor="center")
+attendance_table.column("Name", width=180)
+attendance_table.column("Time", width=100, anchor="center")
+attendance_table.column("Status", width=220)
+
+scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=attendance_table.yview)
+attendance_table.configure(yscrollcommand=scrollbar.set)
+
+attendance_table.pack(side="left")
+scrollbar.pack(side="right", fill="y")
+
+# ---------------- QR / SCAN FUNCTIONS ----------------
+def generate_qr():
+    name = simple_prompt("Enter full name for QR:")
+
+    if name is None:
+        return
+
+    if name.strip() == "":
+        messagebox.showwarning(
+            "Invalid Input",
+            "Name cannot be empty.\n\nPlease enter a valid full name."
+        )
+        return
+
+    if not re.fullmatch(r"[A-Za-z.,\s]+", name):
+        messagebox.showwarning(
+            "Invalid Input",
+            "Name must contain letters only.\n\nAllowed: letters, spaces, commas, and periods."
+        )
+        return
+
+    data = {"name": name, "key": SECRET_KEY}
+    data_string = json.dumps(data)
+
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(data_string)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    filename = os.path.join(BASE_DIR, f"{name.replace(' ', '_')}_QR.png")
+    img.save(filename)
+
+    os.startfile(filename)
+    messagebox.showinfo("QR Generated", f"QR code saved as {os.path.basename(filename)}")
+
+def scan_qr():
+    global last_scan_time
+
+    cap = cv2.VideoCapture(0)
+
+    if not cap.isOpened():
+        messagebox.showerror(
+            "Camera Error",
+            "Unable to access camera.\n\nCheck camera connection and permissions."
+        )
+        return
+
+    detector = cv2.QRCodeDetector()
+    messagebox.showinfo("Scan QR", "Show QR code. Press 'Q' to cancel.")
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            messagebox.showerror("Camera Error", "Failed to read camera.")
+            break
+
+        cv2.imshow("QR Scanner", frame)
+        data, bbox, _ = detector.detectAndDecode(frame)
+
+        if data:
+            current_time = time.time()
+            if current_time - last_scan_time < SCAN_DELAY:
+                continue
+
+            last_scan_time = current_time
+
+            try:
+                qr_data = json.loads(data)
+                if qr_data.get("key") != SECRET_KEY:
+                    messagebox.showerror("Invalid Qr", "Unauthorized QR code, please try again.")
+                    continue
+
+                register_student(qr_data.get("name", "Unknown"))
+            except json.JSONDecodeError:
+                messagebox.showerror("Invalid QR", "QR not recognized.")
+
+            break
+
+        if cv2.waitKey(1) & 0xFF == ord("q"):
+            break
+
+    cap.release()
+    cv2.destroyAllWindows()
+
+# ---------------- FIXED PROMPT ----------------
+def simple_prompt(prompt_text):
+    top = tk.Toplevel(root)
+    top.title(prompt_text)
+
+    tk.Label(top, text=prompt_text).pack(padx=10, pady=5)
+
+    entry = tk.Entry(top, width=40)
+    entry.pack(padx=10, pady=5)
+    entry.focus_set()
+
+    placeholder = "(Last name, First Name M.I.)"
+    is_placeholder = {"active": True}
+
+    def show_placeholder():
+        entry.delete(0, tk.END)
+        entry.insert(0, placeholder)
+        entry.config(fg="gray")
+        is_placeholder["active"] = True
+
+    def remove_placeholder(event=None):
+        if is_placeholder["active"]:
+            entry.delete(0, tk.END)
+            entry.config(fg="black")
+            is_placeholder["active"] = False
+
+    def on_key(event):
+        if is_placeholder["active"]:
+            remove_placeholder()
+
+    def on_focus_out(event):
+        if entry.get().strip() == "":
+            show_placeholder()
+
+    top.after(100, show_placeholder)
+
+    entry.bind("<FocusIn>", remove_placeholder)
+    entry.bind("<Key>", on_key)
+    entry.bind("<FocusOut>", on_focus_out)
+
+    result = {"value": None}
+
+    def submit():
+        value = entry.get().strip()
+        if is_placeholder["active"]:
+            result["value"] = ""
+        else:
+            result["value"] = value
+        top.destroy()
+
+    def on_close():
+        result["value"] = None
+        top.destroy()
+
+    tk.Button(top, text="Submit", command=submit).pack(pady=5)
+
+    top.protocol("WM_DELETE_WINDOW", on_close)
+
+    root.wait_window(top)
+    return result["value"]
+
+# Buttons
+btn_frame = tk.Frame(root)
+btn_frame.pack(pady=10)
+
+tk.Button(btn_frame, text="Generate QR", width=15, command=generate_qr).grid(row=0, column=0, padx=5, pady=5)
+tk.Button(btn_frame, text="Scan QR", width=15, command=scan_qr).grid(row=0, column=1, padx=5, pady=5)
+
+# Run
+root.protocol("WM_DELETE_WINDOW", on_close)
+root.mainloop()
